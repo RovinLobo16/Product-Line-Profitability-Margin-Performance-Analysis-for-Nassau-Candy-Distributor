@@ -1,4 +1,11 @@
 import pandas as pd
+import logging
+
+# =========================
+# SETUP LOGGER (PRO LEVEL)
+# =========================
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def load_data(filepath="Nassau Candy Distributor.csv"):
     try:
@@ -6,24 +13,37 @@ def load_data(filepath="Nassau Candy Distributor.csv"):
         # LOAD DATA
         # =========================
         df = pd.read_csv(filepath)
+        logger.info("✅ Data loaded successfully")
 
         # =========================
-        # STANDARDIZE COLUMN NAMES
+        # CLEAN COLUMN NAMES
         # =========================
-        df.columns = df.columns.str.strip()
+        df.columns = df.columns.str.strip().str.replace("\n", " ")
 
         # =========================
-        # TYPE CONVERSION
+        # REQUIRED COLUMNS CHECK
+        # =========================
+        required_cols = ["Sales", "Units", "Gross Profit"]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+
+        if missing_cols:
+            raise ValueError(f"Missing required columns: {missing_cols}")
+
+        # =========================
+        # TYPE CONVERSION (SAFE)
         # =========================
         numeric_cols = ["Sales", "Units", "Gross Profit", "Cost"]
 
         for col in numeric_cols:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
 
         # =========================
         # HANDLE MISSING VALUES
         # =========================
+        before_rows = len(df)
         df = df.dropna(subset=["Sales", "Units", "Gross Profit"])
+        logger.info(f"Removed {before_rows - len(df)} rows with missing values")
 
         # =========================
         # REMOVE INVALID DATA
@@ -37,22 +57,45 @@ def load_data(filepath="Nassau Candy Distributor.csv"):
         df["Profit per Unit"] = df["Gross Profit"] / df["Units"]
 
         # =========================
-        # DATE HANDLING (if exists)
+        # OPTIONAL: CAP EXTREME OUTLIERS (PRO FEATURE)
         # =========================
-        if "Order Date" in df.columns:
-            df["Order Date"] = pd.to_datetime(df["Order Date"], errors="coerce")
+        if "Gross Margin %" in df.columns:
+            df["Gross Margin %"] = df["Gross Margin %"].clip(-100, 100)
 
         # =========================
-        # SORT DATA (optional but useful)
+        # DATE HANDLING
+        # =========================
+        date_cols = ["Order Date", "Ship Date"]
+
+        for col in date_cols:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors="coerce")
+
+        # =========================
+        # DERIVED TIME FEATURES
+        # =========================
+        if "Order Date" in df.columns:
+            df["Year"] = df["Order Date"].dt.year
+            df["Month"] = df["Order Date"].dt.month
+            df["Quarter"] = df["Order Date"].dt.to_period("Q").astype(str)
+
+        # =========================
+        # SORTING
         # =========================
         df = df.sort_values(by="Gross Profit", ascending=False)
+
+        logger.info(f"✅ Final dataset shape: {df.shape}")
 
         return df
 
     except FileNotFoundError:
-        print("❌ File not found. Check your path.")
+        logger.error("❌ File not found. Check your file path.")
+        return pd.DataFrame()
+
+    except ValueError as ve:
+        logger.error(f"❌ Data validation error: {ve}")
         return pd.DataFrame()
 
     except Exception as e:
-        print(f"❌ Error loading data: {e}")
+        logger.exception(f"❌ Unexpected error: {e}")
         return pd.DataFrame()
