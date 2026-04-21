@@ -42,9 +42,9 @@ if df.empty:
     st.stop()
 
 # =========================
-# APPLY GLOBAL FILTERS
+# APPLY FILTERS
 # =========================
-df = apply_filters(df)
+df, margin_threshold = apply_filters(df)
 
 # =========================
 # LOGO
@@ -52,7 +52,7 @@ df = apply_filters(df)
 LOGO_PATH = "assets/unified_mentor_logo.png"
 
 # =========================
-# PREMIUM CSS
+# CSS
 # =========================
 st.markdown("""
 <style>
@@ -92,7 +92,7 @@ with col2:
 st.markdown("---")
 
 # =========================
-# KPIs
+# KPI CARDS
 # =========================
 total_sales = df["Sales"].sum()
 total_profit = df["Gross Profit"].sum()
@@ -103,7 +103,7 @@ c1, c2, c3, c4 = st.columns(4)
 
 c1.markdown(f'<div class="metric-card">💰 Revenue<br>${total_sales:,.0f}</div>', unsafe_allow_html=True)
 c2.markdown(f'<div class="metric-card">📈 Gross Profit<br>${total_profit:,.0f}</div>', unsafe_allow_html=True)
-c3.markdown(f'<div class="metric-card">📊 Margin<br>{avg_margin:.2f}%</div>', unsafe_allow_html=True)
+c3.markdown(f'<div class="metric-card">📊 Avg Margin<br>{avg_margin:.2f}%</div>', unsafe_allow_html=True)
 c4.markdown(f'<div class="metric-card">📦 Units<br>{total_units:,.0f}</div>', unsafe_allow_html=True)
 
 st.markdown("---")
@@ -132,24 +132,40 @@ fig = px.bar(
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# INSIGHTS
+# BUSINESS QUESTIONS PANEL
 # =========================
-st.subheader("🤖 Executive Insights")
+st.subheader("🎯 Business Questions Answered")
 
 top_product = top_products.iloc[0]["Product Name"]
 
-low_margin = len(df[df["Gross Margin %"] < 20])
-volume_trap = len(df[
+low_margin_df = df[df["Gross Margin %"] < margin_threshold]
+
+volume_trap_df = df[
     (df["Sales"] > df["Sales"].quantile(0.75)) &
-    (df["Gross Margin %"] < 25)
-])
+    (df["Gross Margin %"] < margin_threshold)
+]
+
+colA, colB, colC = st.columns(3)
+
+colA.success(f"Top margin product: {top_product}")
+colB.warning(f"{len(low_margin_df)} products below {margin_threshold}% margin")
+colC.error(f"{len(volume_trap_df)} volume traps detected")
+
+# =========================
+# EXECUTIVE SUMMARY
+# =========================
+st.subheader("🤖 Executive Summary")
 
 st.markdown(f"""
 <div class="insight-box">
 Revenue: ${total_sales:,.0f}<br>
-Profit: ${total_profit:,.0f}<br>
-Top product: {top_product}<br>
-Low margin products: {low_margin}<br>
-Volume traps: {volume_trap}
+Gross Profit: ${total_profit:,.0f}<br>
+Average Margin: {avg_margin:.2f}%<br><br>
+
+Top Product: {top_product}<br>
+Low Margin Products: {len(low_margin_df)}<br>
+Volume Traps: {len(volume_trap_df)}<br><br>
+
+Recommendation: Focus on pricing optimization and scaling high-margin products.
 </div>
 """, unsafe_allow_html=True)
