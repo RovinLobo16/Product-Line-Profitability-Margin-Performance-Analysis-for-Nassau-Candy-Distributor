@@ -1,98 +1,149 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+from utils import load_data
 
-st.title("📍 Geographic Distribution")
+st.title("🌍 Advanced Geo Analytics")
 
 # =========================
-# LOAD DATA SAFELY
+# LOAD DATA
 # =========================
-@st.cache_data
-def load_data():
-    try:
-        df = pd.read_csv("Nassau Candy Distributor.csv")
-        df.columns = df.columns.str.strip()
-        return df
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return pd.DataFrame()
-
 df = load_data()
 
 # =========================
-# CHECK LOCATION DATA
+# FACTORY COORDINATES
 # =========================
-required_cols = ["Latitude", "Longitude"]
+factory_coords = pd.DataFrame({
+    "Factory": ["Lot's O' Nuts", "Wicked Choccy's", "Sugar Shack",
+                "Secret Factory", "The Other Factory"],
+    "Latitude": [32.881893, 32.076176, 48.11914, 41.446333, 35.1175],
+    "Longitude": [-111.768036, -81.088371, -96.18115, -90.565487, -89.97107]
+})
 
-if all(col in df.columns for col in required_cols):
+# =========================
+# MERGE DATA
+# =========================
+if "Factory" in df.columns:
+    df = df.merge(factory_coords, on="Factory", how="left")
 
-    # Clean coordinates
-    df["Latitude"] = pd.to_numeric(df["Latitude"], errors="coerce")
-    df["Longitude"] = pd.to_numeric(df["Longitude"], errors="coerce")
+df = df.dropna(subset=["Latitude", "Longitude"])
 
-    df = df.dropna(subset=["Latitude", "Longitude"])
+if df.empty:
+    st.error("No geographic data available.")
+    st.stop()
 
-    # =========================
-    # OPTIONAL METRIC FILTER
-    # =========================
-    if "Division" in df.columns:
-        division_filter = st.sidebar.multiselect(
-            "Select Division",
-            df["Division"].unique(),
-            default=df["Division"].unique()
-        )
-        df = df[df["Division"].isin(division_filter)]
+# =========================
+# SIDEBAR CONTROLS
+# =========================
+st.sidebar.header("🌐 Map Controls")
 
-    # =========================
-    # SIZE / COLOR OPTIONS
-    # =========================
-    size_option = st.selectbox(
-        "Bubble Size Based On",
-        ["None", "Sales", "Gross Profit"]
+metric = st.sidebar.selectbox(
+    "Metric",
+    ["Sales", "Gross Profit"]
+)
+
+view = st.sidebar.radio(
+    "View Type",
+    ["Bubble Map", "Heatmap"]
+)
+
+# =========================
+# AGGREGATE
+# =========================
+geo = df.groupby(["Factory", "Latitude", "Longitude"]).agg({
+    "Sales": "sum",
+    "Gross Profit": "sum"
+}).reset_index()
+
+# =========================
+# KPI SUMMARY
+# =========================
+st.subheader("📊 Geo KPIs")
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric("Total Locations", len(geo))
+col2.metric("Total Sales", f"${geo['Sales'].sum():,.0f}")
+col3.metric("Total Profit", f"${geo['Gross Profit'].sum():,.0f}")
+
+# =========================
+# BUBBLE MAP
+# =========================
+if view == "Bubble Map":
+
+    fig = px.scatter_mapbox(
+        geo,
+        lat="Latitude",
+        lon="Longitude",
+        size=metric,
+        color="Factory",
+        hover_name="Factory",
+        hover_data=["Sales", "Gross Profit"],
+        zoom=3,
+        height=550
     )
 
-    map_df = df.copy()
+    fig.update_layout(mapbox_style="carto-darkmatter")
 
-    if size_option != "None" and size_option in df.columns:
-        # Normalize for map sizing
-        map_df["size"] = df[size_option] / df[size_option].max()
-    else:
-        map_df["size"] = 1
-
-    # =========================
-    # MAP DISPLAY
-    # =========================
-    st.subheader("🗺️ Location Map")
-
-    st.map(
-        map_df.rename(columns={
-            "Latitude": "lat",
-            "Longitude": "lon"
-        })[["lat", "lon"]]
-    )
-
-    # =========================
-    # SUMMARY
-    # =========================
-    st.subheader("📊 Location Summary")
-
-    col1, col2 = st.columns(2)
-
-    col1.metric("Total Locations", len(map_df))
-    if "Sales" in df.columns:
-        col2.metric("Total Sales", f"${map_df['Sales'].sum():,.0f}")
-
+# =========================
+# HEATMAP
+# =========================
 else:
-    # =========================
-    # FALLBACK MESSAGE
-    # =========================
-    st.warning("⚠️ No Latitude/Longitude data available.")
 
-    st.info("""
-To enable map visualization, add these columns to your dataset:
-- Latitude
-- Longitude
+    fig = px.density_mapbox(
+        df,
+        lat="Latitude",
+        lon="Longitude",
+        z=metric,
+        radius=25,
+        zoom=3,
+        height=550
+    )
 
-Example:
-Latitude | Longitude  
-40.7128  | -74.0060
-""")
+    fig.update_layout(mapbox_style="carto-darkmatter")
+
+st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# FACTORY PERFORMANCE
+# =========================
+st.subheader("🏭 Factory Performance")
+
+fig2 = px.bar(
+    geo.sort_values(by="Gross Profit", ascending=False),
+    x="Factory",
+    y=["Sales", "Gross Profit"],
+    barmode="group",
+    title="Revenue vs Profit by Factory"
+)
+
+st.plotly_chart(fig2, use_container_width=True)
+
+# =========================
+# AI GEO INSIGHTS
+# =========================
+st.subheader("🧠 Geo Insights")
+
+top_factory = geo.loc[geo["Gross Profit"].idxmax()]
+low_factory = geo.loc[geo["Gross Profit"].idxmin()]
+
+colA, colB = st.columns(2)
+
+colA.success(
+    f"Top factory: {top_factory['Factory']} "
+    f"(${top_factory['Gross Profit']:,.0f} profit)"
+)
+
+colB.warning(
+    f"Lowest performing factory: {low_factory['Factory']}"
+)
+
+# =========================
+# DOWNLOAD
+# =========================
+st.download_button(
+    "⬇️ Download Geo Data",
+    geo.to_csv(index=False),
+    file_name="geo_analysis.csv",
+    mime="text/csv"
+)
