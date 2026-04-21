@@ -4,23 +4,48 @@ def apply_filters(df):
 
     st.sidebar.header("🔍 Global Filters")
 
-    if "Division" in df.columns:
-        division = st.sidebar.multiselect(
-            "Division", df["Division"].unique(), default=df["Division"].unique()
-        )
-        df = df[df["Division"].isin(division)]
+    filtered_df = df.copy()
 
-    if "Region" in df.columns:
-        region = st.sidebar.multiselect(
-            "Region", df["Region"].unique(), default=df["Region"].unique()
-        )
-        df = df[df["Region"].isin(region)]
+    # =========================
+    # DIVISION
+    # =========================
+    if "Division" in filtered_df.columns:
+        divisions = sorted(filtered_df["Division"].dropna().unique())
 
-    if "Product Name" in df.columns:
-        product = st.sidebar.multiselect(
-            "Product", df["Product Name"].unique()
+        selected_div = st.sidebar.multiselect(
+            "Division",
+            divisions,
+            default=divisions
         )
-        if product:
-            df = df[df["Product Name"].isin(product)]
 
-    return df
+        filtered_df = filtered_df[filtered_df["Division"].isin(selected_div)]
+
+    # =========================
+    # REGION
+    # =========================
+    if "Region" in filtered_df.columns:
+        regions = sorted(filtered_df["Region"].dropna().unique())
+
+        selected_reg = st.sidebar.multiselect(
+            "Region",
+            regions,
+            default=regions
+        )
+
+        filtered_df = filtered_df[filtered_df["Region"].isin(selected_reg)]
+
+    # =========================
+    # PRODUCT
+    # =========================
+    if "Product Name" in filtered_df.columns:
+        products = sorted(filtered_df["Product Name"].dropna().unique())
+
+        selected_prod = st.sidebar.multiselect(
+            "Product",
+            products
+        )
+
+        if selected_prod:
+            filtered_df = filtered_df[filtered_df["Product Name"].isin(selected_prod)]
+
+    return filtered_df
