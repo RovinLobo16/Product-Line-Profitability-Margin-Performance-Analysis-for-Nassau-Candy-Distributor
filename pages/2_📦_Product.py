@@ -7,21 +7,40 @@ from utils import load_data
 # =========================
 df = load_data()
 
+if df.empty:
+    st.error("No data available")
+    st.stop()
+
 st.title("📦 Product Performance Analysis")
+st.caption("Identify profit drivers, risks, and optimization opportunities")
 
 # =========================
-# SIDEBAR FILTER
+# SIDEBAR FILTERS (UPGRADED)
 # =========================
-division_filter = st.sidebar.multiselect(
-    "Select Division",
-    df["Division"].unique(),
-    default=df["Division"].unique()
-)
+st.sidebar.header("🔍 Filters")
 
-df = df[df["Division"].isin(division_filter)]
+if "Division" in df.columns:
+    division_filter = st.sidebar.multiselect(
+        "Division",
+        df["Division"].unique(),
+        default=df["Division"].unique()
+    )
+    df = df[df["Division"].isin(division_filter)]
+
+if "Region" in df.columns:
+    region_filter = st.sidebar.multiselect(
+        "Region",
+        df["Region"].unique(),
+        default=df["Region"].unique()
+    )
+    df = df[df["Region"].isin(region_filter)]
+
+if df.empty:
+    st.warning("No data after filters")
+    st.stop()
 
 # =========================
-# AGGREGATE DATA
+# AGGREGATE
 # =========================
 product = df.groupby("Product Name").agg({
     "Sales": "sum",
@@ -31,12 +50,18 @@ product = df.groupby("Product Name").agg({
 product["Margin %"] = (product["Gross Profit"] / product["Sales"]) * 100
 
 # =========================
-# CLASSIFICATION (KEY FEATURE)
+# DYNAMIC THRESHOLDS
+# =========================
+sales_q75 = product["Sales"].quantile(0.75)
+margin_q75 = product["Margin %"].quantile(0.75)
+
+# =========================
+# CLASSIFICATION (IMPROVED)
 # =========================
 def classify(row):
-    if row["Sales"] > product["Sales"].quantile(0.75) and row["Margin %"] > 30:
+    if row["Sales"] >= sales_q75 and row["Margin %"] >= margin_q75:
         return "High Value ⭐"
-    elif row["Sales"] > product["Sales"].quantile(0.75) and row["Margin %"] <= 30:
+    elif row["Sales"] >= sales_q75 and row["Margin %"] < 25:
         return "Volume Trap ⚠️"
     elif row["Margin %"] < 20:
         return "Low Performer ❌"
@@ -46,8 +71,21 @@ def classify(row):
 product["Category"] = product.apply(classify, axis=1)
 
 # =========================
-# SCATTER PLOT
+# KPI SUMMARY (NEW)
 # =========================
+st.subheader("📊 Product KPIs")
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric("Products", len(product))
+col2.metric("Avg Margin", f"{product['Margin %'].mean():.2f}%")
+col3.metric("Total Profit", f"${product['Gross Profit'].sum():,.0f}")
+
+# =========================
+# SCATTER PLOT (IMPROVED)
+# =========================
+st.subheader("📈 Product Segmentation")
+
 fig = px.scatter(
     product,
     x="Sales",
@@ -55,20 +93,26 @@ fig = px.scatter(
     color="Category",
     size="Gross Profit",
     hover_name="Product Name",
-    title="Product Segmentation (Sales vs Margin)",
+    title="Sales vs Margin Segmentation",
     size_max=60
 )
 
-# Add reference lines
-fig.add_hline(y=30, line_dash="dash", line_color="green")
-fig.add_hline(y=20, line_dash="dash", line_color="red")
+# Reference lines
+fig.add_hline(y=25, line_dash="dash", annotation_text="Margin Benchmark")
+fig.add_vline(x=sales_q75, line_dash="dash", annotation_text="Top 25% Sales")
+
+fig.update_layout(
+    plot_bgcolor="#0e1117",
+    paper_bgcolor="#0e1117",
+    font=dict(color="white")
+)
 
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# TOP PRODUCTS TABLE
+# TOP PRODUCTS
 # =========================
-st.subheader("🏆 Top Products by Profit")
+st.subheader("🏆 Top Profit Drivers")
 
 top_products = product.sort_values(
     by="Gross Profit", ascending=False
@@ -77,22 +121,39 @@ top_products = product.sort_values(
 st.dataframe(top_products, use_container_width=True)
 
 # =========================
-# QUICK INSIGHTS
+# FOCUS PRODUCTS (NEW)
+# =========================
+st.subheader("🎯 Action Focus")
+
+volume_traps = product[product["Category"] == "Volume Trap ⚠️"]
+low_perf = product[product["Category"] == "Low Performer ❌"]
+
+colA, colB = st.columns(2)
+
+colA.warning(f"{len(volume_traps)} products are high sales but low margin.")
+colB.error(f"{len(low_perf)} products need immediate review.")
+
+# =========================
+# INSIGHTS (UPGRADED)
 # =========================
 st.subheader("🧠 Insights")
 
-high_value = len(product[product["Category"] == "High Value ⭐"])
-volume_trap = len(product[product["Category"] == "Volume Trap ⚠️"])
-low_perf = len(product[product["Category"] == "Low Performer ❌"])
+top_product = product.loc[
+    product["Gross Profit"].idxmax(), "Product Name"
+]
 
-col1, col2, col3 = st.columns(3)
+st.markdown(f"""
+- **Top profit driver:** {top_product}  
+- **High-value products:** {len(product[product['Category']=='High Value ⭐'])}  
+- **Volume traps:** {len(volume_traps)}  
+- **Low performers:** {len(low_perf)}  
 
-col1.success(f"{high_value} high-value products driving strong profit.")
-col2.warning(f"{volume_trap} products are high sales but low margin.")
-col3.error(f"{low_perf} products underperform and need review.")
+📌 **Recommendation:**  
+Focus on scaling high-margin products and optimizing pricing for volume traps.
+""")
 
 # =========================
-# DOWNLOAD OPTION (BONUS)
+# DOWNLOAD
 # =========================
 st.download_button(
     "⬇️ Download Product Analysis",
