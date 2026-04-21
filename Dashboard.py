@@ -1,19 +1,30 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(page_title="AI Dashboard", layout="wide")
+st.set_page_config(page_title="Nassau AI Dashboard", layout="wide")
 
 # =========================
-# LOAD DATA
+# LOAD DATA (SAFE)
 # =========================
 @st.cache_data
 def load_data():
     df = pd.read_csv("Nassau Candy Distributor.csv")
+
+    df.columns = df.columns.str.strip()
+
+    # Clean numeric
+    for col in ["Sales", "Units", "Gross Profit"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    df = df.dropna(subset=["Sales", "Units", "Gross Profit"])
     df = df[(df["Sales"] > 0) & (df["Units"] > 0)]
+
     df["Gross Margin %"] = (df["Gross Profit"] / df["Sales"]) * 100
+
     return df
 
 df = load_data()
@@ -27,11 +38,16 @@ body { background-color:#0e1117; color:white; }
 
 .metric-card {
     background: linear-gradient(135deg,#1f77b4,#2ca02c);
-    padding:20px;
+    padding:18px;
     border-radius:15px;
     text-align:center;
     color:white;
     font-size:18px;
+    box-shadow:0px 4px 10px rgba(0,0,0,0.4);
+}
+
+.section {
+    margin-top:20px;
 }
 
 .insight-box {
@@ -40,6 +56,7 @@ body { background-color:#0e1117; color:white; }
     border-left:5px solid #00c8ff;
     border-radius:10px;
     margin-bottom:10px;
+    line-height:1.6;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -47,28 +64,48 @@ body { background-color:#0e1117; color:white; }
 # =========================
 # TITLE
 # =========================
-st.title("🍬 Nassau Candy AI Intelligence Platform")
+st.title("🍬 Nassau Candy Intelligence Platform")
+st.caption("AI-powered profitability & performance analytics")
 
 # =========================
-# KPI CARDS
+# SIDEBAR FILTERS (IMPORTANT)
 # =========================
+st.sidebar.header("🔍 Filters")
+
+if "Division" in df.columns:
+    division = st.sidebar.multiselect(
+        "Division", df["Division"].unique(), default=df["Division"].unique()
+    )
+    df = df[df["Division"].isin(division)]
+
+if "Region" in df.columns:
+    region = st.sidebar.multiselect(
+        "Region", df["Region"].unique(), default=df["Region"].unique()
+    )
+    df = df[df["Region"].isin(region)]
+
+# =========================
+# KPI CARDS (IMPROVED LABELS)
+# =========================
+total_sales = df["Sales"].sum()
+total_profit = df["Gross Profit"].sum()
+avg_margin = df["Gross Margin %"].mean()
+total_units = df["Units"].sum()
+
 col1, col2, col3, col4 = st.columns(4)
 
-col1.markdown(f'<div class="metric-card">💰 Sales<br>${df["Sales"].sum():,.0f}</div>', unsafe_allow_html=True)
-col2.markdown(f'<div class="metric-card">📈 Profit<br>${df["Gross Profit"].sum():,.0f}</div>', unsafe_allow_html=True)
-col3.markdown(f'<div class="metric-card">📊 Avg Margin<br>{df["Gross Margin %"].mean():.2f}%</div>', unsafe_allow_html=True)
-col4.markdown(f'<div class="metric-card">📦 Units<br>{df["Units"].sum():,.0f}</div>', unsafe_allow_html=True)
+col1.markdown(f'<div class="metric-card">💰 Revenue<br>${total_sales:,.0f}</div>', unsafe_allow_html=True)
+col2.markdown(f'<div class="metric-card">📈 Gross Profit<br>${total_profit:,.0f}</div>', unsafe_allow_html=True)
+col3.markdown(f'<div class="metric-card">📊 Avg Margin<br>{avg_margin:.2f}%</div>', unsafe_allow_html=True)
+col4.markdown(f'<div class="metric-card">📦 Units Sold<br>{total_units:,.0f}</div>', unsafe_allow_html=True)
 
 st.markdown("---")
 
 # =========================
-# QUICK VISUALS
+# TOP PRODUCTS (BETTER)
 # =========================
-st.subheader("📊 Quick Insights")
+st.subheader("📊 Top Profit Drivers")
 
-import plotly.express as px
-
-# Top 10 products
 top_products = (
     df.groupby("Product Name")["Gross Profit"]
     .sum()
@@ -82,47 +119,63 @@ fig = px.bar(
     x="Gross Profit",
     y="Product Name",
     orientation="h",
-    title="Top 10 Products by Profit"
+    color="Gross Profit",
+    title="Top 10 Products by Gross Profit"
 )
+
+fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117")
 
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# AI INSIGHTS (AUTO GENERATED)
+# EXECUTIVE AI INSIGHTS (UPGRADED)
 # =========================
-st.subheader("🤖 AI Insights")
-
-insights = []
-
-total_sales = df["Sales"].sum()
-total_profit = df["Gross Profit"].sum()
-avg_margin = df["Gross Margin %"].mean()
+st.subheader("🤖 Executive Insights")
 
 top_product = top_products.iloc[0]["Product Name"]
 
-low_margin_count = len(df[df["Gross Margin %"] < 20])
+low_margin_df = df[df["Gross Margin %"] < 20]
+volume_trap_df = df[
+    (df["Sales"] > df["Sales"].quantile(0.75)) &
+    (df["Gross Margin %"] < 25)
+]
 
-volume_trap_count = len(
-    df[
-        (df["Sales"] > df["Sales"].quantile(0.75)) &
-        (df["Gross Margin %"] < 25)
-    ]
-)
+# =========================
+# EXECUTIVE SUMMARY (NEW)
+# =========================
+st.markdown(f"""
+<div class="insight-box">
+<b>📌 Executive Summary</b><br>
+The business generated <b>${total_sales:,.0f}</b> in revenue and <b>${total_profit:,.0f}</b> in gross profit,
+with an average margin of <b>{avg_margin:.2f}%</b>.<br><br>
 
-# Generate insights
-insights.append(f"Total revenue is ${total_sales:,.0f} with profit of ${total_profit:,.0f}.")
-insights.append(f"Average margin is {avg_margin:.2f}%, indicating overall profitability health.")
-insights.append(f"Top-performing product is '{top_product}' driving the highest profit.")
-insights.append(f"{low_margin_count} products have margins below 20%, indicating cost or pricing issues.")
-insights.append(f"{volume_trap_count} high-sales products are generating low margins (volume trap risk).")
+<b>{top_product}</b> is the leading profit contributor.
+However, <b>{len(low_margin_df)}</b> low-margin products and 
+<b>{len(volume_trap_df)}</b> volume traps are reducing profitability.<br><br>
 
-# Display nicely
-for insight in insights:
-    st.markdown(f'<div class="insight-box">{insight}</div>', unsafe_allow_html=True)
+<b>Recommendation:</b> Focus on pricing optimization, cost reduction, and scaling high-margin products.
+</div>
+""", unsafe_allow_html=True)
+
+# =========================
+# STRUCTURED INSIGHTS
+# =========================
+st.markdown("### 🔍 Key Observations")
+
+insights = [
+    f"Revenue: ${total_sales:,.0f} | Gross Profit: ${total_profit:,.0f}",
+    f"Average margin is {avg_margin:.2f}%",
+    f"Top product: {top_product}",
+    f"{len(low_margin_df)} products have margin below 20%",
+    f"{len(volume_trap_df)} high-sales products are low-margin (volume trap)"
+]
+
+for i in insights:
+    st.markdown(f'<div class="insight-box">{i}</div>', unsafe_allow_html=True)
 
 st.markdown("---")
 
 # =========================
-# NAVIGATION HELP
+# NAVIGATION
 # =========================
-st.info("👉 Use the sidebar to explore detailed analysis: Product, Division, Risk, Pareto, AI Insights, Pricing Simulator.")
+st.info("👉 Use the sidebar to explore deeper analytics: Product | Division | Risk | Pareto | AI | Pricing | Geo | Report")
