@@ -1,55 +1,62 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import os
 
 # =========================
-# PAGE CONFIG (WITH LOGO ICON)
+# CONFIG
 # =========================
+LOGO_PATH = "assets/unified_mentor_logo.png"   # 🔥 safest path
+
 st.set_page_config(
     page_title="Nassau AI Dashboard",
     layout="wide",
-    page_icon="logo of uni.avif"   # 🔥 rename your image to logo.png
+    page_icon=LOGO_PATH if os.path.exists(LOGO_PATH) else "📊"
 )
 
 # =========================
-# LOAD DATA (SAFE)
+# LOAD DATA
 # =========================
 @st.cache_data
 def load_data():
-    df = pd.read_csv("Nassau Candy Distributor.csv")
+    try:
+        df = pd.read_csv("Nassau Candy Distributor.csv")
 
-    df.columns = df.columns.str.strip()
+        df.columns = df.columns.str.strip()
 
-    for col in ["Sales", "Units", "Gross Profit"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
+        for col in ["Sales", "Units", "Gross Profit"]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    df = df.dropna(subset=["Sales", "Units", "Gross Profit"])
-    df = df[(df["Sales"] > 0) & (df["Units"] > 0)]
+        df = df.dropna(subset=["Sales", "Units", "Gross Profit"])
+        df = df[(df["Sales"] > 0) & (df["Units"] > 0)]
 
-    df["Gross Margin %"] = (df["Gross Profit"] / df["Sales"]) * 100
+        df["Gross Margin %"] = (df["Gross Profit"] / df["Sales"]) * 100
 
-    return df
+        return df
+
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame()
 
 df = load_data()
 
 if df.empty:
-    st.error("No data available")
+    st.error("❌ No data available")
     st.stop()
 
 # =========================
-# SIDEBAR LOGO (GLOBAL BRANDING)
+# LOGO (SAFE LOAD)
 # =========================
-st.sidebar.image("logo.png", width=120)
+if os.path.exists(LOGO_PATH):
+    st.sidebar.image(LOGO_PATH, width=120)
 
-# =========================
-# HEADER (LOGO + TITLE)
-# =========================
-col1, col2 = st.columns([1, 6])
-
-with col1:
-    st.image("logo.png", width=80)
-
-with col2:
+    col1, col2 = st.columns([1, 6])
+    with col1:
+        st.image(LOGO_PATH, width=80)
+    with col2:
+        st.title("🍬 Nassau Candy Intelligence Platform")
+        st.caption("AI-powered profitability & performance analytics")
+else:
     st.title("🍬 Nassau Candy Intelligence Platform")
     st.caption("AI-powered profitability & performance analytics")
 
@@ -109,7 +116,7 @@ if df.empty:
     st.stop()
 
 # =========================
-# KPI CARDS
+# KPIs
 # =========================
 total_sales = df["Sales"].sum()
 total_profit = df["Gross Profit"].sum()
