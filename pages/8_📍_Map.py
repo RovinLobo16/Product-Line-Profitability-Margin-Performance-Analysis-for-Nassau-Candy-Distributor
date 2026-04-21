@@ -10,6 +10,20 @@ st.title("🌍 Advanced Geo Analytics")
 # =========================
 df = load_data()
 
+if df.empty:
+    st.error("❌ Data not loaded properly.")
+    st.stop()
+
+# =========================
+# CLEAN COLUMN NAMES
+# =========================
+df.columns = df.columns.str.strip()
+
+# =========================
+# DEBUG (OPTIONAL - REMOVE LATER)
+# =========================
+# st.write("Columns:", df.columns.tolist())
+
 # =========================
 # FACTORY COORDINATES
 # =========================
@@ -21,15 +35,34 @@ factory_coords = pd.DataFrame({
 })
 
 # =========================
-# MERGE DATA
+# VALIDATE FACTORY COLUMN
 # =========================
-if "Factory" in df.columns:
-    df = df.merge(factory_coords, on="Factory", how="left")
+if "Factory" not in df.columns:
+    st.error("❌ 'Factory' column missing in dataset. Cannot map locations.")
+    st.stop()
+
+# =========================
+# MERGE GEO DATA
+# =========================
+df = df.merge(factory_coords, on="Factory", how="left")
+
+# =========================
+# VALIDATE GEO COLUMNS
+# =========================
+if "Latitude" not in df.columns or "Longitude" not in df.columns:
+    st.error("❌ Latitude/Longitude columns not found after merge.")
+    st.stop()
+
+# =========================
+# CLEAN GEO DATA
+# =========================
+df["Latitude"] = pd.to_numeric(df["Latitude"], errors="coerce")
+df["Longitude"] = pd.to_numeric(df["Longitude"], errors="coerce")
 
 df = df.dropna(subset=["Latitude", "Longitude"])
 
 if df.empty:
-    st.error("No geographic data available.")
+    st.error("❌ No valid geographic data available after cleaning.")
     st.stop()
 
 # =========================
@@ -48,7 +81,7 @@ view = st.sidebar.radio(
 )
 
 # =========================
-# AGGREGATE
+# AGGREGATE DATA
 # =========================
 geo = df.groupby(["Factory", "Latitude", "Longitude"]).agg({
     "Sales": "sum",
@@ -56,18 +89,18 @@ geo = df.groupby(["Factory", "Latitude", "Longitude"]).agg({
 }).reset_index()
 
 # =========================
-# KPI SUMMARY
+# KPI SECTION
 # =========================
 st.subheader("📊 Geo KPIs")
 
 col1, col2, col3 = st.columns(3)
 
-col1.metric("Total Locations", len(geo))
+col1.metric("Factories", len(geo))
 col2.metric("Total Sales", f"${geo['Sales'].sum():,.0f}")
 col3.metric("Total Profit", f"${geo['Gross Profit'].sum():,.0f}")
 
 # =========================
-# BUBBLE MAP
+# MAP VISUALIZATION
 # =========================
 if view == "Bubble Map":
 
@@ -85,9 +118,6 @@ if view == "Bubble Map":
 
     fig.update_layout(mapbox_style="carto-darkmatter")
 
-# =========================
-# HEATMAP
-# =========================
 else:
 
     fig = px.density_mapbox(
@@ -120,7 +150,7 @@ fig2 = px.bar(
 st.plotly_chart(fig2, use_container_width=True)
 
 # =========================
-# AI GEO INSIGHTS
+# INSIGHTS
 # =========================
 st.subheader("🧠 Geo Insights")
 
@@ -131,7 +161,7 @@ colA, colB = st.columns(2)
 
 colA.success(
     f"Top factory: {top_factory['Factory']} "
-    f"(${top_factory['Gross Profit']:,.0f} profit)"
+    f"(${top_factory['Gross Profit']:,.0f})"
 )
 
 colB.warning(
