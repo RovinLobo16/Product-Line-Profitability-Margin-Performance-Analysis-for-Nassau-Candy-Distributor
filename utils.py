@@ -1,7 +1,7 @@
 import pandas as pd
 
 def load_data():
-    df = pd.read_csv("data/Nassau Candy Distributor(5).csv")
+    df = pd.read_csv("Nassau Candy Distributor.csv")
 
     df = df[(df["Sales"] > 0) & (df["Units"] > 0)]
 
