@@ -4,18 +4,16 @@ import plotly.express as px
 import os
 
 # =========================
-# CONFIG
+# PAGE CONFIG
 # =========================
-LOGO_PATH = "assets/unified_mentor_logo.png"   # 🔥 safest path
-
 st.set_page_config(
     page_title="Nassau AI Dashboard",
     layout="wide",
-    page_icon=LOGO_PATH if os.path.exists(LOGO_PATH) else "📊"
+    page_icon="🍬"
 )
 
 # =========================
-# LOAD DATA
+# LOAD DATA (SAFE)
 # =========================
 @st.cache_data
 def load_data():
@@ -24,8 +22,10 @@ def load_data():
 
         df.columns = df.columns.str.strip()
 
+        # Convert numeric
         for col in ["Sales", "Units", "Gross Profit"]:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
 
         df = df.dropna(subset=["Sales", "Units", "Gross Profit"])
         df = df[(df["Sales"] > 0) & (df["Units"] > 0)]
@@ -35,32 +35,18 @@ def load_data():
         return df
 
     except Exception as e:
-        st.error(f"Error loading data: {e}")
+        st.error(f"❌ Error loading data: {e}")
         return pd.DataFrame()
 
 df = load_data()
 
 if df.empty:
-    st.error("❌ No data available")
     st.stop()
 
 # =========================
-# LOGO (SAFE LOAD)
+# LOGO PATH (FIXED ERROR)
 # =========================
-if os.path.exists(LOGO_PATH):
-    st.sidebar.image(LOGO_PATH, width=120)
-
-    col1, col2 = st.columns([1, 6])
-    with col1:
-        st.image(LOGO_PATH, width=80)
-    with col2:
-        st.title("🍬 Nassau Candy Intelligence Platform")
-        st.caption("AI-powered profitability & performance analytics")
-else:
-    st.title("🍬 Nassau Candy Intelligence Platform")
-    st.caption("AI-powered profitability & performance analytics")
-
-st.markdown("---")
+LOGO_PATH = "assets/unified_mentor_logo.png"  # your actual file name
 
 # =========================
 # PREMIUM CSS
@@ -71,12 +57,16 @@ body { background-color:#0e1117; color:white; }
 
 .metric-card {
     background: linear-gradient(135deg,#1f77b4,#2ca02c);
-    padding:18px;
+    padding:20px;
     border-radius:15px;
     text-align:center;
     color:white;
     font-size:18px;
-    box-shadow:0px 4px 10px rgba(0,0,0,0.4);
+    box-shadow:0px 4px 12px rgba(0,0,0,0.4);
+}
+
+.section {
+    margin-top:25px;
 }
 
 .insight-box {
@@ -91,32 +81,52 @@ body { background-color:#0e1117; color:white; }
 """, unsafe_allow_html=True)
 
 # =========================
-# SIDEBAR FILTERS
+# HEADER (BIG LOGO + TITLE)
 # =========================
+col1, col2 = st.columns([1.5, 6])
+
+with col1:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=150)
+    else:
+        st.warning("Logo not found")
+
+with col2:
+    st.markdown("""
+        <h1 style='margin-bottom:0;'>🍬 Nassau Candy Intelligence Platform</h1>
+        <p style='color:gray; margin-top:0; font-size:16px;'>
+        AI-powered profitability & performance analytics
+        </p>
+    """, unsafe_allow_html=True)
+
+st.markdown("---")
+
+# =========================
+# SIDEBAR (LOGO + FILTERS)
+# =========================
+if os.path.exists(LOGO_PATH):
+    st.sidebar.image(LOGO_PATH, width=160)
+
 st.sidebar.header("🔍 Filters")
 
 if "Division" in df.columns:
     division = st.sidebar.multiselect(
         "Division",
-        sorted(df["Division"].dropna().unique()),
-        default=sorted(df["Division"].dropna().unique())
+        df["Division"].unique(),
+        default=df["Division"].unique()
     )
     df = df[df["Division"].isin(division)]
 
 if "Region" in df.columns:
     region = st.sidebar.multiselect(
         "Region",
-        sorted(df["Region"].dropna().unique()),
-        default=sorted(df["Region"].dropna().unique())
+        df["Region"].unique(),
+        default=df["Region"].unique()
     )
     df = df[df["Region"].isin(region)]
 
-if df.empty:
-    st.warning("No data after filters")
-    st.stop()
-
 # =========================
-# KPIs
+# KPI CARDS
 # =========================
 total_sales = df["Sales"].sum()
 total_profit = df["Gross Profit"].sum()
@@ -125,10 +135,25 @@ total_units = df["Units"].sum()
 
 col1, col2, col3, col4 = st.columns(4)
 
-col1.markdown(f'<div class="metric-card">💰 Revenue<br>${total_sales:,.0f}</div>', unsafe_allow_html=True)
-col2.markdown(f'<div class="metric-card">📈 Gross Profit<br>${total_profit:,.0f}</div>', unsafe_allow_html=True)
-col3.markdown(f'<div class="metric-card">📊 Avg Margin<br>{avg_margin:.2f}%</div>', unsafe_allow_html=True)
-col4.markdown(f'<div class="metric-card">📦 Units Sold<br>{total_units:,.0f}</div>', unsafe_allow_html=True)
+col1.markdown(
+    f'<div class="metric-card">💰 Revenue<br>${total_sales:,.0f}</div>',
+    unsafe_allow_html=True
+)
+
+col2.markdown(
+    f'<div class="metric-card">📈 Gross Profit<br>${total_profit:,.0f}</div>',
+    unsafe_allow_html=True
+)
+
+col3.markdown(
+    f'<div class="metric-card">📊 Avg Margin<br>{avg_margin:.2f}%</div>',
+    unsafe_allow_html=True
+)
+
+col4.markdown(
+    f'<div class="metric-card">📦 Units Sold<br>{total_units:,.0f}</div>',
+    unsafe_allow_html=True
+)
 
 st.markdown("---")
 
@@ -157,7 +182,7 @@ fig = px.bar(
 fig.update_layout(
     plot_bgcolor="#0e1117",
     paper_bgcolor="#0e1117",
-    font=dict(color="white")
+    font_color="white"
 )
 
 st.plotly_chart(fig, use_container_width=True)
@@ -181,19 +206,21 @@ volume_trap_df = df[
 st.markdown(f"""
 <div class="insight-box">
 <b>📌 Executive Summary</b><br>
-The business generated <b>${total_sales:,.0f}</b> in revenue and <b>${total_profit:,.0f}</b> in gross profit,
+The business generated <b>${total_sales:,.0f}</b> in revenue and 
+<b>${total_profit:,.0f}</b> in gross profit,
 with an average margin of <b>{avg_margin:.2f}%</b>.<br><br>
 
-<b>{top_product}</b> is the leading profit contributor.
-However, <b>{len(low_margin_df)}</b> low-margin products and 
-<b>{len(volume_trap_df)}</b> volume traps are reducing profitability.<br><br>
+<b>{top_product}</b> is the leading profit contributor.<br><br>
 
-<b>Recommendation:</b> Focus on pricing optimization, cost reduction, and scaling high-margin products.
+⚠️ <b>{len(low_margin_df)}</b> low-margin products  
+⚠️ <b>{len(volume_trap_df)}</b> volume traps<br><br>
+
+<b>Recommendation:</b> Optimize pricing, reduce costs, scale high-margin products.
 </div>
 """, unsafe_allow_html=True)
 
 # =========================
-# KEY OBSERVATIONS
+# KEY INSIGHTS
 # =========================
 st.markdown("### 🔍 Key Observations")
 
@@ -202,15 +229,19 @@ insights = [
     f"Average margin is {avg_margin:.2f}%",
     f"Top product: {top_product}",
     f"{len(low_margin_df)} products have margin below 20%",
-    f"{len(volume_trap_df)} high-sales products are low-margin (volume trap)"
+    f"{len(volume_trap_df)} high-sales products are low-margin"
 ]
 
 for i in insights:
-    st.markdown(f'<div class="insight-box">{i}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="insight-box">{i}</div>',
+        unsafe_allow_html=True
+    )
 
+# =========================
+# FOOTER
+# =========================
 st.markdown("---")
-
-# =========================
-# NAVIGATION
-# =========================
-st.info("👉 Use the sidebar to explore deeper analytics: Product | Division | Risk | Pareto | AI | Pricing | Geo | Report")
+st.info(
+    "👉 Use sidebar to explore: Product | Division | Risk | Pareto | AI | Pricing | Geo | Report"
+)
