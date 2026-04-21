@@ -1,11 +1,10 @@
 import streamlit as st
 import plotly.graph_objects as go
-from utils import load_data
 from components.filters import apply_filters
 from utils import load_data
 
 df = load_data()
-df = apply_filters(df)
+df, margin_threshold = apply_filters(df)
 
 # =========================
 # LOAD DATA
