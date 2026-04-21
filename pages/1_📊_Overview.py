@@ -1,11 +1,15 @@
 import streamlit as st
 import plotly.express as px
 from utils import load_data
+from components.filters import apply_filters
+from utils import load_data
+
+df = load_data()
+df = apply_filters(df)
 
 # =========================
 # LOAD DATA
 # =========================
-df = load_data()
 
 if df.empty:
     st.error("No data available.")
