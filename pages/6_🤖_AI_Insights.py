@@ -1,11 +1,15 @@
 import streamlit as st
 from utils import load_data
 from ai_module import generate_insights
+from components.filters import apply_filters
+from utils import load_data
+
+df = load_data()
+df = apply_filters(df)
 
 # =========================
 # LOAD DATA
 # =========================
-df = load_data()
 
 if df.empty:
     st.error("No data available")
