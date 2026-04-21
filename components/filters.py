@@ -1,51 +1,59 @@
 import streamlit as st
+import pandas as pd
 
 def apply_filters(df):
 
     st.sidebar.header("🔍 Global Filters")
 
-    filtered_df = df.copy()
+    # =========================
+    # DATE FILTER
+    # =========================
+    if "Order Date" in df.columns:
+        df["Order Date"] = pd.to_datetime(df["Order Date"], errors="coerce")
+
+        min_date = df["Order Date"].min()
+        max_date = df["Order Date"].max()
+
+        date_range = st.sidebar.date_input(
+            "📅 Date Range",
+            [min_date, max_date]
+        )
+
+        if len(date_range) == 2:
+            df = df[
+                (df["Order Date"] >= pd.to_datetime(date_range[0])) &
+                (df["Order Date"] <= pd.to_datetime(date_range[1]))
+            ]
 
     # =========================
-    # DIVISION
+    # DIVISION FILTER
     # =========================
-    if "Division" in filtered_df.columns:
-        divisions = sorted(filtered_df["Division"].dropna().unique())
-
-        selected_div = st.sidebar.multiselect(
+    if "Division" in df.columns:
+        division = st.sidebar.multiselect(
             "Division",
-            divisions,
-            default=divisions
+            df["Division"].unique(),
+            default=df["Division"].unique()
+        )
+        df = df[df["Division"].isin(division)]
+
+    # =========================
+    # PRODUCT SEARCH
+    # =========================
+    if "Product Name" in df.columns:
+        search = st.sidebar.text_input("🔍 Search Product")
+
+        if search:
+            df = df[df["Product Name"].str.contains(search, case=False, na=False)]
+
+    # =========================
+    # MARGIN SLIDER
+    # =========================
+    if "Gross Margin %" in df.columns:
+        margin_threshold = st.sidebar.slider(
+            "📊 Margin Threshold (%)",
+            0, 100, 20
         )
 
-        filtered_df = filtered_df[filtered_df["Division"].isin(selected_div)]
+        df = df[df["Gross Margin %"] >= margin_threshold]
 
-    # =========================
-    # REGION
-    # =========================
-    if "Region" in filtered_df.columns:
-        regions = sorted(filtered_df["Region"].dropna().unique())
-
-        selected_reg = st.sidebar.multiselect(
-            "Region",
-            regions,
-            default=regions
-        )
-
-        filtered_df = filtered_df[filtered_df["Region"].isin(selected_reg)]
-
-    # =========================
-    # PRODUCT
-    # =========================
-    if "Product Name" in filtered_df.columns:
-        products = sorted(filtered_df["Product Name"].dropna().unique())
-
-        selected_prod = st.sidebar.multiselect(
-            "Product",
-            products
-        )
-
-        if selected_prod:
-            filtered_df = filtered_df[filtered_df["Product Name"].isin(selected_prod)]
-
-    return filtered_df
+    return df
