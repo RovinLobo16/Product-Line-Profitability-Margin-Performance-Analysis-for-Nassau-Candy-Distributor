@@ -4,7 +4,8 @@ def generate_insights(df):
         "performance": [],
         "risk": [],
         "opportunity": [],
-        "narrative": ""
+        "narrative": "",
+        "bullets": []
     }
 
     total_sales = df["Sales"].sum()
@@ -24,23 +25,34 @@ def generate_insights(df):
     ]
 
     # =========================
+    # BULLET EXECUTIVE SUMMARY
+    # =========================
+    insights["bullets"] = [
+        f"Revenue: ${total_sales:,.0f}",
+        f"Gross Profit: ${total_profit:,.0f}",
+        f"Average Margin: {avg_margin:.2f}%",
+        f"Top Product: {top_product}",
+        f"Top Division: {top_division}"
+    ]
+
+    # =========================
     # SUMMARY
     # =========================
     insights["summary"].append(
-        f"Revenue: ${total_sales:,.0f}, Profit: ${total_profit:,.0f}"
+        f"Total revenue reached ${total_sales:,.0f} with gross profit of ${total_profit:,.0f}"
     )
     insights["summary"].append(
-        f"Average margin is {avg_margin:.2f}%"
+        f"Overall margin stands at {avg_margin:.2f}%"
     )
 
     # =========================
     # PERFORMANCE
     # =========================
     insights["performance"].append(
-        f"Top product: {top_product} (HIGH priority)"
+        f"{top_product} is the highest profit-generating product (HIGH)"
     )
     insights["performance"].append(
-        f"Top division: {top_division}"
+        f"{top_division} leads in division-level profitability"
     )
 
     # =========================
@@ -48,37 +60,37 @@ def generate_insights(df):
     # =========================
     if len(low_margin) > 0:
         insights["risk"].append(
-            f"{len(low_margin)} products have margin <20% (HIGH priority)"
+            f"{len(low_margin)} products have margin below 20% (HIGH)"
         )
 
     if len(volume_trap) > 0:
         insights["risk"].append(
-            f"{len(volume_trap)} volume trap products detected (MEDIUM priority)"
+            f"{len(volume_trap)} high-volume products are margin inefficient (MEDIUM)"
         )
 
     # =========================
-    # OPPORTUNITY
+    # OPPORTUNITIES
     # =========================
     insights["opportunity"].append(
-        "Increase prices or reduce cost for low-margin products"
+        "Optimize pricing for low-margin products"
     )
     insights["opportunity"].append(
-        "Focus on scaling high-margin products"
+        "Scale high-margin product lines"
     )
 
     # =========================
-    # GPT-STYLE NARRATIVE
+    # EXECUTIVE NARRATIVE
     # =========================
     insights["narrative"] = f"""
-    The business generated ${total_sales:,.0f} in revenue with a total profit of ${total_profit:,.0f}.
-    Profitability is moderate with an average margin of {avg_margin:.2f}%.
+The business generated ${total_sales:,.0f} in revenue with total gross profit of ${total_profit:,.0f}.
+Profitability is moderate with an average margin of {avg_margin:.2f}%.
 
-    The strongest contributor is {top_product}, while {top_division} leads at the division level.
-    
-    However, there are {len(low_margin)} low-margin products impacting profitability.
-    Additionally, {len(volume_trap)} high-volume products are not generating sufficient margins.
+The strongest contributor is {top_product}, while {top_division} leads at the division level.
 
-    Strategic focus should be on optimizing pricing, reducing costs, and scaling high-margin products.
-    """
+However, {len(low_margin)} low-margin products are impacting overall profitability.
+Additionally, {len(volume_trap)} high-volume products are not generating sufficient margins.
+
+Strategic focus should be on optimizing pricing, reducing costs, and scaling high-margin products.
+"""
 
     return insights
