@@ -3,95 +3,82 @@ def generate_insights(df):
         "summary": [],
         "performance": [],
         "risk": [],
-        "opportunity": []
+        "opportunity": [],
+        "narrative": ""
     }
 
-    # =========================
-    # CORE METRICS
-    # =========================
     total_sales = df["Sales"].sum()
     total_profit = df["Gross Profit"].sum()
     avg_margin = df["Gross Margin %"].mean()
 
-    # =========================
-    # TOP PRODUCT
-    # =========================
     product_profit = df.groupby("Product Name")["Gross Profit"].sum()
     top_product = product_profit.idxmax()
-    top_product_value = product_profit.max()
 
-    # =========================
-    # TOP DIVISION
-    # =========================
     division_profit = df.groupby("Division")["Gross Profit"].sum()
     top_division = division_profit.idxmax()
 
-    # =========================
-    # LOW MARGIN PRODUCTS
-    # =========================
     low_margin = df[df["Gross Margin %"] < 20]
-
-    # =========================
-    # VOLUME TRAPS
-    # =========================
     volume_trap = df[
         (df["Sales"] > df["Sales"].quantile(0.75)) &
         (df["Gross Margin %"] < 25)
     ]
 
     # =========================
-    # PARETO (80/20)
-    # =========================
-    sorted_profit = product_profit.sort_values(ascending=False)
-    cumulative = sorted_profit.cumsum() / sorted_profit.sum()
-    top_20_percent_products = cumulative[cumulative <= 0.8].count()
-
-    # =========================
     # SUMMARY
     # =========================
     insights["summary"].append(
-        f"Total revenue is ${total_sales:,.0f} generating ${total_profit:,.0f} in profit."
+        f"Revenue: ${total_sales:,.0f}, Profit: ${total_profit:,.0f}"
     )
     insights["summary"].append(
-        f"Average margin stands at {avg_margin:.2f}% across all products."
+        f"Average margin is {avg_margin:.2f}%"
     )
 
     # =========================
-    # PERFORMANCE INSIGHTS
+    # PERFORMANCE
     # =========================
     insights["performance"].append(
-        f"Top-performing product is '{top_product}' contributing ${top_product_value:,.0f} in profit."
+        f"Top product: {top_product} (HIGH priority)"
     )
     insights["performance"].append(
-        f"'{top_division}' division is the highest profit-generating business unit."
+        f"Top division: {top_division}"
     )
 
     # =========================
-    # RISK INSIGHTS
+    # RISK
     # =========================
     if len(low_margin) > 0:
         insights["risk"].append(
-            f"{len(low_margin)} products have margins below 20%, indicating pricing or cost inefficiencies."
+            f"{len(low_margin)} products have margin <20% (HIGH priority)"
         )
 
     if len(volume_trap) > 0:
         insights["risk"].append(
-            f"{len(volume_trap)} high-sales products are low-margin (volume traps), reducing overall profitability."
+            f"{len(volume_trap)} volume trap products detected (MEDIUM priority)"
         )
 
     # =========================
-    # OPPORTUNITY INSIGHTS
+    # OPPORTUNITY
     # =========================
     insights["opportunity"].append(
-        f"Top {top_20_percent_products} products contribute to ~80% of total profit (Pareto effect)."
+        "Increase prices or reduce cost for low-margin products"
+    )
+    insights["opportunity"].append(
+        "Focus on scaling high-margin products"
     )
 
-    insights["opportunity"].append(
-        "Consider increasing prices or reducing costs for low-margin high-volume products."
-    )
+    # =========================
+    # GPT-STYLE NARRATIVE
+    # =========================
+    insights["narrative"] = f"""
+    The business generated ${total_sales:,.0f} in revenue with a total profit of ${total_profit:,.0f}.
+    Profitability is moderate with an average margin of {avg_margin:.2f}%.
 
-    insights["opportunity"].append(
-        "Evaluate discontinuation or restructuring of consistently low-performing products."
-    )
+    The strongest contributor is {top_product}, while {top_division} leads at the division level.
+    
+    However, there are {len(low_margin)} low-margin products impacting profitability.
+    Additionally, {len(volume_trap)} high-volume products are not generating sufficient margins.
+
+    Strategic focus should be on optimizing pricing, reducing costs, and scaling high-margin products.
+    """
 
     return insights
