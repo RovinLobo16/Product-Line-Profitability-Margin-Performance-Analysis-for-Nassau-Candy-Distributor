@@ -3,9 +3,13 @@ import pandas as pd
 import plotly.express as px
 
 # =========================
-# PAGE CONFIG
+# PAGE CONFIG (WITH LOGO ICON)
 # =========================
-st.set_page_config(page_title="Nassau AI Dashboard", layout="wide")
+st.set_page_config(
+    page_title="Nassau AI Dashboard",
+    layout="wide",
+    page_icon="logo.png"   # 🔥 rename your image to logo.png
+)
 
 # =========================
 # LOAD DATA (SAFE)
@@ -16,7 +20,6 @@ def load_data():
 
     df.columns = df.columns.str.strip()
 
-    # Clean numeric
     for col in ["Sales", "Units", "Gross Profit"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
@@ -28,6 +31,29 @@ def load_data():
     return df
 
 df = load_data()
+
+if df.empty:
+    st.error("No data available")
+    st.stop()
+
+# =========================
+# SIDEBAR LOGO (GLOBAL BRANDING)
+# =========================
+st.sidebar.image("logo.png", width=120)
+
+# =========================
+# HEADER (LOGO + TITLE)
+# =========================
+col1, col2 = st.columns([1, 6])
+
+with col1:
+    st.image("logo.png", width=80)
+
+with col2:
+    st.title("🍬 Nassau Candy Intelligence Platform")
+    st.caption("AI-powered profitability & performance analytics")
+
+st.markdown("---")
 
 # =========================
 # PREMIUM CSS
@@ -46,10 +72,6 @@ body { background-color:#0e1117; color:white; }
     box-shadow:0px 4px 10px rgba(0,0,0,0.4);
 }
 
-.section {
-    margin-top:20px;
-}
-
 .insight-box {
     background-color:#1c1f26;
     padding:15px;
@@ -62,30 +84,32 @@ body { background-color:#0e1117; color:white; }
 """, unsafe_allow_html=True)
 
 # =========================
-# TITLE
-# =========================
-st.title("🍬 Nassau Candy Intelligence Platform")
-st.caption("AI-powered profitability & performance analytics")
-
-# =========================
-# SIDEBAR FILTERS (IMPORTANT)
+# SIDEBAR FILTERS
 # =========================
 st.sidebar.header("🔍 Filters")
 
 if "Division" in df.columns:
     division = st.sidebar.multiselect(
-        "Division", df["Division"].unique(), default=df["Division"].unique()
+        "Division",
+        sorted(df["Division"].dropna().unique()),
+        default=sorted(df["Division"].dropna().unique())
     )
     df = df[df["Division"].isin(division)]
 
 if "Region" in df.columns:
     region = st.sidebar.multiselect(
-        "Region", df["Region"].unique(), default=df["Region"].unique()
+        "Region",
+        sorted(df["Region"].dropna().unique()),
+        default=sorted(df["Region"].dropna().unique())
     )
     df = df[df["Region"].isin(region)]
 
+if df.empty:
+    st.warning("No data after filters")
+    st.stop()
+
 # =========================
-# KPI CARDS (IMPROVED LABELS)
+# KPI CARDS
 # =========================
 total_sales = df["Sales"].sum()
 total_profit = df["Gross Profit"].sum()
@@ -102,7 +126,7 @@ col4.markdown(f'<div class="metric-card">📦 Units Sold<br>{total_units:,.0f}</
 st.markdown("---")
 
 # =========================
-# TOP PRODUCTS (BETTER)
+# TOP PRODUCTS
 # =========================
 st.subheader("📊 Top Profit Drivers")
 
@@ -123,12 +147,16 @@ fig = px.bar(
     title="Top 10 Products by Gross Profit"
 )
 
-fig.update_layout(plot_bgcolor="#0e1117", paper_bgcolor="#0e1117")
+fig.update_layout(
+    plot_bgcolor="#0e1117",
+    paper_bgcolor="#0e1117",
+    font=dict(color="white")
+)
 
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# EXECUTIVE AI INSIGHTS (UPGRADED)
+# AI INSIGHTS
 # =========================
 st.subheader("🤖 Executive Insights")
 
@@ -141,7 +169,7 @@ volume_trap_df = df[
 ]
 
 # =========================
-# EXECUTIVE SUMMARY (NEW)
+# EXECUTIVE SUMMARY
 # =========================
 st.markdown(f"""
 <div class="insight-box">
@@ -158,7 +186,7 @@ However, <b>{len(low_margin_df)}</b> low-margin products and
 """, unsafe_allow_html=True)
 
 # =========================
-# STRUCTURED INSIGHTS
+# KEY OBSERVATIONS
 # =========================
 st.markdown("### 🔍 Key Observations")
 
