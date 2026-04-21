@@ -4,6 +4,7 @@ import plotly.express as px
 from utils import load_data
 
 st.title("🌍 Advanced Geo Analytics")
+st.caption("Analyze factory-level performance and geographic contribution")
 
 # =========================
 # LOAD DATA
@@ -17,78 +18,79 @@ if df.empty:
 df.columns = df.columns.str.strip()
 
 # =========================
-# PRODUCT → FACTORY MAPPING
+# SIDEBAR FILTERS (NEW 🔥)
 # =========================
-product_factory = pd.DataFrame({
-    "Product Name": [
-        "Wonka Bar – Nutty Crunch Surprise",
-        "Wonka Bar – Fudge Mallows",
-        "Wonka Bar – Scrumdidilyumptious",
-        "Wonka Bar – Milk Chocolate",
-        "Wonka Bar – Triple Dazzle Caramel",
-        "Laffy Taffy", "SweeTARTS", "Nerds", "Fun Dip",
-        "Everlasting Gobstopper", "Hair Toffee",
-        "Fizzy Lifting Drinks", "Lickable Wallpaper",
-        "Wonka Gum", "Kazookles"
-    ],
-    "Factory": [
-        "Lot's O' Nuts", "Lot's O' Nuts", "Lot's O' Nuts",
-        "Wicked Choccy's", "Wicked Choccy's",
-        "Sugar Shack", "Sugar Shack", "Sugar Shack", "Sugar Shack",
-        "Secret Factory", "The Other Factory",
-        "Sugar Shack", "Secret Factory",
-        "Secret Factory", "The Other Factory"
-    ]
-})
+st.sidebar.header("🔍 Filters")
 
-# =========================
-# FACTORY COORDINATES
-# =========================
-factory_coords = pd.DataFrame({
-    "Factory": ["Lot's O' Nuts", "Wicked Choccy's", "Sugar Shack",
-                "Secret Factory", "The Other Factory"],
-    "Latitude": [32.881893, 32.076176, 48.11914, 41.446333, 35.1175],
-    "Longitude": [-111.768036, -81.088371, -96.18115, -90.565487, -89.97107]
-})
+if "Division" in df.columns:
+    div = st.sidebar.multiselect(
+        "Division", df["Division"].unique(),
+        default=df["Division"].unique()
+    )
+    df = df[df["Division"].isin(div)]
 
-# =========================
-# VALIDATE PRODUCT COLUMN
-# =========================
-if "Product Name" not in df.columns:
-    st.error("❌ 'Product Name' column missing.")
+if "Region" in df.columns:
+    reg = st.sidebar.multiselect(
+        "Region", df["Region"].unique(),
+        default=df["Region"].unique()
+    )
+    df = df[df["Region"].isin(reg)]
+
+if df.empty:
+    st.warning("No data after filters")
     st.stop()
 
 # =========================
-# MERGE PRODUCT → FACTORY
+# PRODUCT → FACTORY MAP
 # =========================
-df = df.merge(product_factory, on="Product Name", how="left")
+product_factory = {
+    "Wonka Bar – Nutty Crunch Surprise": "Lot's O' Nuts",
+    "Wonka Bar – Fudge Mallows": "Lot's O' Nuts",
+    "Wonka Bar – Scrumdidilyumptious": "Lot's O' Nuts",
+    "Wonka Bar – Milk Chocolate": "Wicked Choccy's",
+    "Wonka Bar – Triple Dazzle Caramel": "Wicked Choccy's",
+    "Laffy Taffy": "Sugar Shack",
+    "SweeTARTS": "Sugar Shack",
+    "Nerds": "Sugar Shack",
+    "Fun Dip": "Sugar Shack",
+    "Everlasting Gobstopper": "Secret Factory",
+    "Hair Toffee": "The Other Factory",
+    "Fizzy Lifting Drinks": "Sugar Shack",
+    "Lickable Wallpaper": "Secret Factory",
+    "Wonka Gum": "Secret Factory",
+    "Kazookles": "The Other Factory"
+}
+
+df["Factory"] = df["Product Name"].map(product_factory)
 
 # =========================
-# MERGE FACTORY → GEO
+# COORDINATES
 # =========================
-df = df.merge(factory_coords, on="Factory", how="left")
+coords = {
+    "Lot's O' Nuts": (32.88, -111.76),
+    "Wicked Choccy's": (32.07, -81.08),
+    "Sugar Shack": (48.11, -96.18),
+    "Secret Factory": (41.44, -90.56),
+    "The Other Factory": (35.11, -89.97)
+}
+
+df["Latitude"] = df["Factory"].map(lambda x: coords.get(x, (None, None))[0])
+df["Longitude"] = df["Factory"].map(lambda x: coords.get(x, (None, None))[1])
 
 # =========================
-# CLEAN GEO DATA
+# CLEAN
 # =========================
 df = df.dropna(subset=["Latitude", "Longitude"])
 
 if df.empty:
-    st.error("❌ No geographic data available after mapping.")
+    st.error("❌ No geographic data available.")
     st.stop()
 
 # =========================
-# SIDEBAR
+# SIDEBAR CONTROLS
 # =========================
-st.sidebar.header("Controls")
-
-metric = st.sidebar.selectbox(
-    "Metric", ["Sales", "Gross Profit"]
-)
-
-view = st.sidebar.radio(
-    "View", ["Bubble Map", "Heatmap"]
-)
+metric = st.sidebar.selectbox("Metric", ["Sales", "Gross Profit"])
+view = st.sidebar.radio("View", ["Bubble Map", "Heatmap"])
 
 # =========================
 # AGGREGATE
@@ -97,6 +99,21 @@ geo = df.groupby(["Factory", "Latitude", "Longitude"]).agg({
     "Sales": "sum",
     "Gross Profit": "sum"
 }).reset_index()
+
+# Contribution %
+total_profit = geo["Gross Profit"].sum()
+geo["Profit Contribution %"] = (geo["Gross Profit"] / total_profit) * 100
+
+# =========================
+# KPI SUMMARY (NEW 🔥)
+# =========================
+st.subheader("📊 Geo KPIs")
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric("Factories", len(geo))
+col2.metric("Total Sales", f"${geo['Sales'].sum():,.0f}")
+col3.metric("Total Profit", f"${geo['Gross Profit'].sum():,.0f}")
 
 # =========================
 # MAP
@@ -109,7 +126,7 @@ if view == "Bubble Map":
         size=metric,
         color="Factory",
         hover_name="Factory",
-        hover_data=["Sales", "Gross Profit"],
+        hover_data=["Sales", "Gross Profit", "Profit Contribution %"],
         zoom=3,
         height=550
     )
@@ -124,21 +141,41 @@ else:
         height=550
     )
 
-fig.update_layout(mapbox_style="carto-darkmatter")
+fig.update_layout(
+    mapbox_style="carto-darkmatter",
+    margin=dict(l=0, r=0, t=30, b=0)
+)
+
 st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# INSIGHTS
+# FACTORY PERFORMANCE TABLE (NEW 🔥)
+# =========================
+st.subheader("🏭 Factory Performance")
+
+st.dataframe(
+    geo.sort_values(by="Gross Profit", ascending=False),
+    use_container_width=True
+)
+
+# =========================
+# INSIGHTS (UPGRADED)
 # =========================
 st.subheader("🧠 Geo Insights")
 
 top = geo.loc[geo["Gross Profit"].idxmax()]
 low = geo.loc[geo["Gross Profit"].idxmin()]
 
-col1, col2 = st.columns(2)
+st.markdown(f"""
+- **Top performing factory:** {top['Factory']} (${top['Gross Profit']:,.0f})  
+- **Lowest performing factory:** {low['Factory']}  
+- **Highest contribution:** {top['Profit Contribution %']:.2f}% of total profit  
 
-col1.success(f"Top factory: {top['Factory']} (${top['Gross Profit']:,.0f})")
-col2.warning(f"Lowest factory: {low['Factory']}")
+📌 **Recommendation:**  
+- Scale production from top-performing factories  
+- Investigate inefficiencies in low-performing locations  
+- Optimize supply chain distribution  
+""")
 
 # =========================
 # DOWNLOAD
