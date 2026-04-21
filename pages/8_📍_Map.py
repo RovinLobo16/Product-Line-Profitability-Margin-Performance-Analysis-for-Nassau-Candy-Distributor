@@ -2,11 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from utils import load_data
-from components.filters import apply_filters
-from utils import load_data
-
-df = load_data()
-df = apply_filters(df)
 
 st.title("🌍 Advanced Geo Analytics")
 st.caption("Analyze factory-level performance and geographic contribution")
