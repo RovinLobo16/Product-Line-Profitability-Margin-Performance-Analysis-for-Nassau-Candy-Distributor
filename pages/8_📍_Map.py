@@ -9,7 +9,7 @@ st.title("📍 Geographic Distribution")
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv("data/Nassau Candy Distributor(5).csv")
+        df = pd.read_csv("Nassau Candy Distributor.csv")
         df.columns = df.columns.str.strip()
         return df
     except Exception as e:
