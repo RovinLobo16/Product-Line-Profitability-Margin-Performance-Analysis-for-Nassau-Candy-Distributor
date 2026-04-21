@@ -17,7 +17,7 @@ def apply_filters(df):
         date_range = st.sidebar.date_input(
             "📅 Date Range",
             [min_date, max_date],
-            key="date_filter"   # ✅ FIX
+            key="date_filter"
         )
 
         if len(date_range) == 2:
@@ -27,14 +27,14 @@ def apply_filters(df):
             ]
 
     # =========================
-    # DIVISION
+    # DIVISION FILTER
     # =========================
     if "Division" in df.columns:
         division = st.sidebar.multiselect(
             "Division",
             df["Division"].unique(),
             default=df["Division"].unique(),
-            key="division_filter"   # ✅ FIX
+            key="division_filter"
         )
         df = df[df["Division"].isin(division)]
 
@@ -44,22 +44,23 @@ def apply_filters(df):
     if "Product Name" in df.columns:
         search = st.sidebar.text_input(
             "🔍 Search Product",
-            key="product_search"   # ✅ FIX
+            key="product_search"
         )
 
         if search:
             df = df[df["Product Name"].str.contains(search, case=False, na=False)]
 
     # =========================
-    # MARGIN SLIDER
+    # MARGIN SLIDER (NO DATA LOSS)
     # =========================
     if "Gross Margin %" in df.columns:
         margin = st.sidebar.slider(
             "📊 Margin Threshold (%)",
-            0, 100, 0,
-            key="margin_filter"   # ✅ FIX
+            0, 100, 20,
+            key="margin_filter"
         )
 
-        df = df[df["Gross Margin %"] >= margin]
+        # DO NOT filter df → only return threshold
+        return df, margin
 
-    return df
+    return df, 0
