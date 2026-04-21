@@ -8,7 +8,7 @@ import plotly.express as px
 st.set_page_config(
     page_title="Nassau AI Dashboard",
     layout="wide",
-    page_icon="logo.png"   # 🔥 rename your image to logo.png
+    page_icon="logo of uni.avif"   # 🔥 rename your image to logo.png
 )
 
 # =========================
